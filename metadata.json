@@ -1,0 +1,5 @@
+{
+  "name": "Neon Pickleball Scorer",
+  "description": "A high-contrast, dark-mode pickleball score tracker designed for outdoor visibility. Supports Singles and Doubles with automatic rotation and server tracking.",
+  "requestFramePermissions": []
+}
