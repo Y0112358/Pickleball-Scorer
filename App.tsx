@@ -57,10 +57,10 @@ const App: React.FC = () => {
 
   const getCallString = () => {
     const { server, myScore, opponentScore, serverNumber, mode } = gameState;
-    
+
     // Format: ServerScore - ReceiverScore - (ServerNumber if Doubles)
     let sScore, rScore;
-    
+
     if (server === 'me') {
       sScore = myScore;
       rScore = opponentScore;
@@ -70,7 +70,8 @@ const App: React.FC = () => {
     }
 
     if (mode === 'doubles') {
-      return `${sScore} - ${rScore} - ${serverNumber}`;
+      // Rally scoring does not use server number in the call.
+      return `${sScore} - ${rScore}`;
     } else {
       return `${sScore} - ${rScore}`;
     }
@@ -91,7 +92,7 @@ const App: React.FC = () => {
           <p className="text-gray-400 text-sm tracking-widest uppercase">Mobile Scorer</p>
         </div>
 
-        <button 
+        <button
           onClick={() => startGame('singles')}
           className="w-full max-w-sm h-32 rounded-2xl bg-gray-900 border-2 border-gray-700 flex flex-col items-center justify-center gap-2 active:scale-95 transition-all hover:border-cyan-400 group"
         >
@@ -99,13 +100,13 @@ const App: React.FC = () => {
           <span className="text-2xl font-bold tracking-widest text-white">SINGLES</span>
         </button>
 
-        <button 
+        <button
           onClick={() => startGame('doubles')}
           className="w-full max-w-sm h-32 rounded-2xl bg-gray-900 border-2 border-gray-700 flex flex-col items-center justify-center gap-2 active:scale-95 transition-all hover:border-green-400 group"
         >
           <Users className="w-10 h-10 text-green-400 group-hover:scale-110 transition-transform" />
           <span className="text-2xl font-bold tracking-widest text-white">DOUBLES</span>
-          <span className="text-xs text-gray-500">Starts 0-0-2 (A & B vs C & D)</span>
+          <span className="text-xs text-gray-500">Starts 0-0 (Rally Scoring)</span>
         </button>
       </div>
     );
@@ -113,15 +114,15 @@ const App: React.FC = () => {
 
   return (
     <div className="h-screen w-full bg-black flex flex-col select-none touch-manipulation overflow-hidden">
-      
-      <WinnerModal 
-        winner={gameState.winner} 
+
+      <WinnerModal
+        winner={gameState.winner}
         onRematch={() => setGameState(initializeGame(gameState.mode))}
         onMenu={() => setInGame(false)}
       />
 
       {/* TOP SECTION: OPPONENT */}
-      <div 
+      <div
         onClick={() => handleAreaClick('top')}
         className={`
           flex-1 w-full bg-gray-950 relative flex flex-col items-center justify-center
@@ -132,10 +133,10 @@ const App: React.FC = () => {
           <span className={`text-8xl font-black ${COLORS.opponentAccent} neon-text-green`}>
             {gameState.opponentScore}
           </span>
-          <Court 
-            owner="opponent" 
-            isActive={gameState.server === 'opponent'} 
-            activeSide={gameState.opponentPosition} 
+          <Court
+            owner="opponent"
+            isActive={gameState.server === 'opponent'}
+            activeSide={gameState.opponentPosition}
             players={gameState.mode === 'doubles' ? gameState.opponentPlayers : undefined}
             activeServerId={activeServerId}
           />
@@ -146,10 +147,10 @@ const App: React.FC = () => {
       {/* MIDDLE SECTION: CONTROLS & DASHBOARD */}
       {/* Increased Z-Index to 50 to ensure buttons work over other layers */}
       <div className="h-[20%] min-h-[140px] bg-black border-y border-gray-800 flex items-center justify-between px-4 relative z-50 shadow-2xl">
-        
+
         {/* Left Controls */}
         <div className="flex flex-col gap-4">
-           <button 
+          <button
             onClick={handleExit}
             onTouchEnd={handleExit}
             className="p-4 rounded-full bg-gray-900 text-gray-400 hover:text-white active:bg-gray-800 active:scale-95 transition-all"
@@ -173,7 +174,7 @@ const App: React.FC = () => {
 
         {/* Right Controls */}
         <div className="flex flex-col gap-4">
-          <button 
+          <button
             onClick={handleUndo}
             onTouchEnd={handleUndo}
             disabled={gameState.history.length === 0}
@@ -181,7 +182,7 @@ const App: React.FC = () => {
           >
             <Undo size={28} />
           </button>
-          <button 
+          <button
             onClick={handleReset}
             onTouchEnd={handleReset}
             className="p-4 rounded-full bg-gray-900 text-gray-400 hover:text-red-400 active:bg-gray-800 active:scale-95 transition-all"
@@ -192,7 +193,7 @@ const App: React.FC = () => {
       </div>
 
       {/* BOTTOM SECTION: PLAYER (ME) */}
-      <div 
+      <div
         onClick={() => handleAreaClick('bottom')}
         className={`
           flex-1 w-full bg-gray-950 relative flex flex-col items-center justify-center
@@ -201,10 +202,10 @@ const App: React.FC = () => {
       >
         <div className="flex flex-col items-center gap-4">
           <span className="text-xs uppercase tracking-[0.2em] text-gray-500 font-bold mb-2">My Score</span>
-          <Court 
-            owner="me" 
-            isActive={gameState.server === 'me'} 
-            activeSide={gameState.myPosition} 
+          <Court
+            owner="me"
+            isActive={gameState.server === 'me'}
+            activeSide={gameState.myPosition}
             players={gameState.mode === 'doubles' ? gameState.myPlayers : undefined}
             activeServerId={activeServerId}
           />
