@@ -125,7 +125,7 @@ const App: React.FC = () => {
         >
           <Users className="w-10 h-10 text-green-400 group-hover:scale-110 transition-transform" />
           <span className="text-2xl font-bold tracking-widest text-white">DOUBLES</span>
-          <span className={`text-xs ${scoringType === 'sideout' ? 'text-orange-400' : 'text-gray-500'}`}>
+          <span className={`text-xs ${scoringType === 'sideout' ? 'text-orange-400' : 'text-cyan-400'}`}>
             {scoringType === 'sideout' ? 'Starts 0-0-2 (Traditional)' : 'Starts 0-0 (Rally Scoring)'}
           </span>
         </button>
