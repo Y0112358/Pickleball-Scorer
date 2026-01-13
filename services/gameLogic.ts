@@ -158,25 +158,27 @@ export const getActiveServerID = (state: GameState): PlayerID => {
   // === SIDE-OUT SCORING ===
   else {
     const currentScore = state.server === 'me' ? state.myScore : state.opponentScore;
-
-    // Switch to Absolute Score Parity for positioning (Rule 4: Even->Right, Odd->Left)
-    // This overrides "First Serve Right" if score is Odd side-out.
-    const isRelativeEven = currentScore % 2 === 0;
+    // Rule 1 & 5: Side-out ALWAYS starts from the Right (Relative Scoring)
+    // We ignore absolute score parity for the *Start Position* of a new inning.
+    const startScore = state.servingTeamStartScore ?? 0;
+    const pointsScoredInInning = currentScore - startScore;
+    const isRelativeEven = pointsScoredInInning % 2 === 0;
 
     if (state.serverNumber === 1) {
-      // Server 1 always plays from Right if they have scored Even points this turn
-      // (Because they started on Right)
+      // Server 1: Determined by Relative Parity
+      // 0 pts (Start) -> Right. 1 pt -> Left.
       return isRelativeEven ? players[0] : players[1];
     } else {
       // Server 2
-      // If it's the very first server (0-0-2), acts like Server 1 (Start Right)
+      // Rule 3: 0-0-2 Exception (Game Start)
+      // "Skip Server 1", so Server 2 serves as First Server (Start Right)
       if (state.isFirstServer) {
         return isRelativeEven ? players[0] : players[1];
       }
 
-      // Standard Server 2: Inverted logic (Start Left)
-      // If points scored Even -> Stay Left (index 1)
-      // If points scored Odd -> Stay Right (index 0)
+      // Standard Server 2: Inverted logic
+      // Server 1 is "Correct" (Relative Parity).
+      // Server 2 is partner -> "Incorrect" spot coverage (Left for 0 pts/Right for 1 pt relative).
       return isRelativeEven ? players[1] : players[0];
     }
   }
