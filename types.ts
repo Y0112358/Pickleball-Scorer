@@ -24,6 +24,8 @@ export interface GameState {
 
   winner: Player | null;
   history: GameState[];
+  isFirstServer?: boolean;
+  servingTeamStartScore: number;
 }
 
 export const INITIAL_STATE: GameState = {
@@ -40,4 +42,6 @@ export const INITIAL_STATE: GameState = {
   opponentPosition: 'right',
   winner: null,
   history: [],
+  isFirstServer: true,
+  servingTeamStartScore: 0,
 };

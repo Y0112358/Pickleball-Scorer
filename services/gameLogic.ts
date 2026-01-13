@@ -43,6 +43,8 @@ export const initializeGame = (mode: GameMode, scoringType: ScoringType = 'rally
 
     winner: null,
     history: [],
+    isFirstServer: (mode === 'doubles' && scoringType === 'sideout') ? true : false,
+    servingTeamStartScore: 0,
   };
 };
 
@@ -99,6 +101,7 @@ export const handleRallyWin = (currentState: GameState, winner: Player): GameSta
       updateSinglesPositions(newState);
     } else {
       // Doubles Side-out
+      // Rule 2 & 4: Service Sequence & Positioning
       if (isServer) {
         if (winner === 'me') {
           newState.myScore++;
@@ -116,6 +119,12 @@ export const handleRallyWin = (currentState: GameState, winner: Player): GameSta
         } else {
           newState.server = newState.server === 'me' ? 'opponent' : 'me';
           newState.serverNumber = 1;
+          newState.isFirstServer = false; // Side out occurred, exception over
+
+          // Rule 3: 0-0-2 Exception handled via init state, this resets it for normal flow.
+
+          // Capture the start score for the new serving team
+          newState.servingTeamStartScore = newState.server === 'me' ? newState.myScore : newState.opponentScore;
         }
       }
     }
@@ -148,17 +157,27 @@ export const getActiveServerID = (state: GameState): PlayerID => {
 
   // === SIDE-OUT SCORING ===
   else {
+    const currentScore = state.server === 'me' ? state.myScore : state.opponentScore;
+
+    // Switch to Absolute Score Parity for positioning (Rule 4: Even->Right, Odd->Left)
+    // This overrides "First Serve Right" if score is Odd side-out.
+    const isRelativeEven = currentScore % 2 === 0;
+
     if (state.serverNumber === 1) {
-      // In Side-out, if score is Even, Server 1 is in Right (index 0).
-      // If score is Odd, Server 1 is in Left (index 1).
-      const score = state.server === 'me' ? state.myScore : state.opponentScore;
-      const isEven = score % 2 === 0;
-      return isEven ? players[0] : players[1];
+      // Server 1 always plays from Right if they have scored Even points this turn
+      // (Because they started on Right)
+      return isRelativeEven ? players[0] : players[1];
     } else {
       // Server 2
-      const score = state.server === 'me' ? state.myScore : state.opponentScore;
-      const isEven = score % 2 === 0;
-      return isEven ? players[1] : players[0];
+      // If it's the very first server (0-0-2), acts like Server 1 (Start Right)
+      if (state.isFirstServer) {
+        return isRelativeEven ? players[0] : players[1];
+      }
+
+      // Standard Server 2: Inverted logic (Start Left)
+      // If points scored Even -> Stay Left (index 1)
+      // If points scored Odd -> Stay Right (index 0)
+      return isRelativeEven ? players[1] : players[0];
     }
   }
 };
