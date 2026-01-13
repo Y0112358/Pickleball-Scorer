@@ -1,4 +1,4 @@
-import { GameState, Player, GameMode, PlayerID } from '../types';
+import { GameState, Player, GameMode, PlayerID, ScoringType } from '../types';
 import { WIN_SCORE, WIN_BY } from '../constants';
 
 // Deep copy helper
@@ -22,15 +22,16 @@ const updateSinglesPositions = (state: GameState) => {
   state.opponentPosition = state.opponentScore % 2 === 0 ? 'right' : 'left';
 };
 
-export const initializeGame = (mode: GameMode): GameState => {
+export const initializeGame = (mode: GameMode, scoringType: ScoringType = 'rally'): GameState => {
   return {
     mode,
+    scoringType,
     myScore: 0,
     opponentScore: 0,
     server: 'me',
-    // In Rally Scoring, doubles server is always just "The Server".
-    // We use serverNumber: 1 internally for compatibility, but logic won't use 2.
-    serverNumber: 1,
+    // In Rally Scoring, serverNumber is unused (always 1).
+    // In Side-out Scoring (Doubles), starts at 2.
+    serverNumber: (mode === 'doubles' && scoringType === 'sideout') ? 2 : 1,
 
     // Doubles Init: [Right, Left]
     myPlayers: ['A', 'B'],
@@ -54,45 +55,70 @@ export const handleRallyWin = (currentState: GameState, winner: Player): GameSta
 
   if (newState.winner) return newState;
 
-  // --- RALLY SCORING LOGIC ---
-  // A point is awarded to the winner of the rally, regardless of who served.
-
-  if (winner === 'me') {
-    newState.myScore++;
-  } else {
-    newState.opponentScore++;
-  }
-
   const isServer = newState.server === winner;
 
-  if (newState.mode === 'singles') {
-    // --- SINGLES ---
-    if (!isServer) {
-      newState.server = winner; // Side Out
-    }
-    // Update visual positions based on NEW score
-    updateSinglesPositions(newState);
-  } else {
-    // --- DOUBLES ---
-    if (isServer) {
-      // Point Won on Serve -> Switch Sides
-      if (winner === 'me') {
-        const [right, left] = newState.myPlayers;
-        newState.myPlayers = [left, right];
-      } else {
-        const [right, left] = newState.opponentPlayers;
-        newState.opponentPlayers = [left, right];
-      }
+  // --- SCORING LOGIC SPLIT ---
+  if (newState.scoringType === 'rally') {
+    // === RALLY SCORING (2025/2026) ===
+    if (winner === 'me') {
+      newState.myScore++;
     } else {
-      // Side Out -> No Switch, just server change
-      newState.server = winner;
-      // In Rally Scoring, server is determined by the score (Even/Right, Odd/Left).
-      // Players physically stay in their last positions, so we don't swap arrays here.
-      // We just verify who is "serving" in getActiveServerID based on score.
+      newState.opponentScore++;
     }
 
-    // Reset server number to 1 (conceptually unused in pure rally, but for consistency)
-    newState.serverNumber = 1;
+    if (newState.mode === 'singles') {
+      if (!isServer) newState.server = winner; // Side Out
+      updateSinglesPositions(newState);
+    } else {
+      // Doubles Rally
+      if (isServer) {
+        // Point Won on Serve -> Switch Sides
+        if (winner === 'me') {
+          const [right, left] = newState.myPlayers;
+          newState.myPlayers = [left, right];
+        } else {
+          const [right, left] = newState.opponentPlayers;
+          newState.opponentPlayers = [left, right];
+        }
+      } else {
+        // Side Out -> No Switch, just server change
+        newState.server = winner;
+      }
+      newState.serverNumber = 1; // Always 1 in pure rally
+    }
+
+  } else {
+    // === TRADITIONAL SIDE-OUT SCORING ===
+    if (newState.mode === 'singles') {
+      if (isServer) {
+        if (winner === 'me') newState.myScore++;
+        else newState.opponentScore++;
+      } else {
+        newState.server = winner;
+      }
+      updateSinglesPositions(newState);
+    } else {
+      // Doubles Side-out
+      if (isServer) {
+        if (winner === 'me') {
+          newState.myScore++;
+          const [right, left] = newState.myPlayers;
+          newState.myPlayers = [left, right];
+        } else {
+          newState.opponentScore++;
+          const [right, left] = newState.opponentPlayers;
+          newState.opponentPlayers = [left, right];
+        }
+      } else {
+        // Side Out / Hand Over
+        if (newState.serverNumber === 1) {
+          newState.serverNumber = 2;
+        } else {
+          newState.server = newState.server === 'me' ? 'opponent' : 'me';
+          newState.serverNumber = 1;
+        }
+      }
+    }
   }
 
   return checkWinner(newState);
@@ -110,16 +136,29 @@ export const undoLastAction = (currentState: GameState): GameState => {
 export const getActiveServerID = (state: GameState): PlayerID => {
   if (state.mode === 'singles') return '';
 
-  // Rally Scoring Rule:
-  // The server is determined by the serving team's score.
-  // Even Score -> Player on Right serves.
-  // Odd Score -> Player on Left serves.
-
   const players = state.server === 'me' ? state.myPlayers : state.opponentPlayers;
   // players = [RightPlayer, LeftPlayer]
 
-  const score = state.server === 'me' ? state.myScore : state.opponentScore;
-  const isEven = score % 2 === 0;
+  // === RALLY SCORING ===
+  if (state.scoringType === 'rally') {
+    const score = state.server === 'me' ? state.myScore : state.opponentScore;
+    const isEven = score % 2 === 0;
+    return isEven ? players[0] : players[1];
+  }
 
-  return isEven ? players[0] : players[1];
+  // === SIDE-OUT SCORING ===
+  else {
+    if (state.serverNumber === 1) {
+      // In Side-out, if score is Even, Server 1 is in Right (index 0).
+      // If score is Odd, Server 1 is in Left (index 1).
+      const score = state.server === 'me' ? state.myScore : state.opponentScore;
+      const isEven = score % 2 === 0;
+      return isEven ? players[0] : players[1];
+    } else {
+      // Server 2
+      const score = state.server === 'me' ? state.myScore : state.opponentScore;
+      const isEven = score % 2 === 0;
+      return isEven ? players[1] : players[0];
+    }
+  }
 };

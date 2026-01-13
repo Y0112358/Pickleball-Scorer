@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { GameMode, GameState, INITIAL_STATE } from './types';
+import { GameMode, GameState, INITIAL_STATE, ScoringType } from './types';
 import { initializeGame, handleRallyWin, undoLastAction, getActiveServerID } from './services/gameLogic';
 import Court from './components/Court';
 import WinnerModal from './components/WinnerModal';
@@ -9,6 +9,7 @@ import { Undo, RotateCcw, ChevronLeft, Users, User } from 'lucide-react';
 const App: React.FC = () => {
   const [inGame, setInGame] = useState(false);
   const [gameState, setGameState] = useState<GameState>(INITIAL_STATE);
+  const [scoringType, setScoringType] = useState<ScoringType>('rally');
 
   // Prevent browser zoom on double tap
   useEffect(() => {
@@ -17,7 +18,7 @@ const App: React.FC = () => {
   }, []);
 
   const startGame = (mode: GameMode) => {
-    setGameState(initializeGame(mode));
+    setGameState(initializeGame(mode, scoringType));
     setInGame(true);
   };
 
@@ -43,7 +44,7 @@ const App: React.FC = () => {
     e.stopPropagation();
     e.preventDefault();
     if (window.confirm('Reset current game?')) {
-      setGameState(initializeGame(gameState.mode));
+      setGameState(initializeGame(gameState.mode, gameState.scoringType));
     }
   };
 
@@ -70,7 +71,9 @@ const App: React.FC = () => {
     }
 
     if (mode === 'doubles') {
-      // Rally scoring does not use server number in the call.
+      if (gameState.scoringType === 'sideout') {
+        return `${sScore} - ${rScore} - ${serverNumber}`;
+      }
       return `${sScore} - ${rScore}`;
     } else {
       return `${sScore} - ${rScore}`;
@@ -84,12 +87,28 @@ const App: React.FC = () => {
 
   if (!inGame) {
     return (
-      <div className="h-screen w-full bg-black text-white flex flex-col items-center justify-center p-6 gap-8 select-none">
-        <div className="text-center">
+      <div className="h-screen w-full bg-black text-white flex flex-col items-center justify-center p-6 gap-6 select-none">
+        <div className="text-center mb-4">
           <h1 className="text-4xl font-black italic tracking-tighter text-transparent bg-clip-text bg-gradient-to-r from-green-400 to-blue-500 mb-2">
             NEON PICKLE
           </h1>
           <p className="text-gray-400 text-sm tracking-widest uppercase">Mobile Scorer</p>
+        </div>
+
+        {/* Scoring Type Selection */}
+        <div className="flex bg-gray-900 rounded-lg p-1 border border-gray-800 mb-2">
+          <button
+            onClick={() => setScoringType('rally')}
+            className={`px-4 py-2 rounded-md text-sm font-bold tracking-wider transition-all ${scoringType === 'rally' ? 'bg-gradient-to-r from-green-400 to-blue-500 text-black shadow-lg shadow-blue-500/20' : 'text-gray-500 hover:text-white'}`}
+          >
+            RALLY SCORING (2025)
+          </button>
+          <button
+            onClick={() => setScoringType('sideout')}
+            className={`px-4 py-2 rounded-md text-sm font-bold tracking-wider transition-all ${scoringType === 'sideout' ? 'bg-gradient-to-r from-orange-400 to-pink-500 text-black shadow-lg shadow-orange-500/20' : 'text-gray-500 hover:text-white'}`}
+          >
+            TRADITIONAL (SIDE-OUT)
+          </button>
         </div>
 
         <button
@@ -106,7 +125,9 @@ const App: React.FC = () => {
         >
           <Users className="w-10 h-10 text-green-400 group-hover:scale-110 transition-transform" />
           <span className="text-2xl font-bold tracking-widest text-white">DOUBLES</span>
-          <span className="text-xs text-gray-500">Starts 0-0 (Rally Scoring)</span>
+          <span className={`text-xs ${scoringType === 'sideout' ? 'text-orange-400' : 'text-gray-500'}`}>
+            {scoringType === 'sideout' ? 'Starts 0-0-2 (Traditional)' : 'Starts 0-0 (Rally Scoring)'}
+          </span>
         </button>
       </div>
     );
@@ -117,7 +138,7 @@ const App: React.FC = () => {
 
       <WinnerModal
         winner={gameState.winner}
-        onRematch={() => setGameState(initializeGame(gameState.mode))}
+        onRematch={() => setGameState(initializeGame(gameState.mode, gameState.scoringType))}
         onMenu={() => setInGame(false)}
       />
 
