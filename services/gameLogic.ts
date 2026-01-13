@@ -1,6 +1,26 @@
 import { GameState, Player, GameMode, PlayerID, ScoringType } from '../types';
 import { WIN_SCORE, WIN_BY } from '../constants';
 
+/**
+ * ============================================================================
+ * GAME LOGIC SERVICE
+ * ============================================================================
+ * Handles all state transitions for the Pickleball Scorer.
+ * Supports two distinct scoring modes:
+ * 
+ * 1. RALLY SCORING (2026 Proposal):
+ *    - Point awarded on every rally.
+ *    - No "Second Server".
+ *    - Server switches sides on point win.
+ *    - Receiver stays fixed.
+ * 
+ * 2. TRADITIONAL SIDE-OUT SCORING:
+ *    - Only serving team scores.
+ *    - "Second Server" rule applies.
+ *    - Positional rules strict (Rule 1 & 5: Side-out always starts Right).
+ * ============================================================================
+ */
+
 // Deep copy helper
 const cloneState = (state: GameState): GameState => {
   return JSON.parse(JSON.stringify(state));
@@ -22,6 +42,14 @@ const updateSinglesPositions = (state: GameState) => {
   state.opponentPosition = state.opponentScore % 2 === 0 ? 'right' : 'left';
 };
 
+
+/**
+ * Initializes the game state based on selected mode.
+ * 
+ * @param mode 'singles' or 'doubles'
+ * @param scoringType 'rally' or 'sideout'
+ * @returns Initial GameState
+ */
 export const initializeGame = (mode: GameMode, scoringType: ScoringType = 'rally'): GameState => {
   return {
     mode,
@@ -48,10 +76,14 @@ export const initializeGame = (mode: GameMode, scoringType: ScoringType = 'rally
   };
 };
 
+/**
+ * Handles the logic when a rally is finished (someone won the point).
+ * Dispatches to specific scoring logic based on `scoringType`.
+ */
 export const handleRallyWin = (currentState: GameState, winner: Player): GameState => {
   let newState = cloneState(currentState);
 
-  // Save history
+  // Snapshot for Undo
   const historyState = { ...currentState, history: [] };
   newState.history = [...currentState.history, historyState];
 
@@ -59,9 +91,16 @@ export const handleRallyWin = (currentState: GameState, winner: Player): GameSta
 
   const isServer = newState.server === winner;
 
-  // --- SCORING LOGIC SPLIT ---
+  // ==========================================================================
+  // LOGIC BRANCH: RALLY SCORING vs TRADITIONAL SIDE-OUT
+  // ==========================================================================
+
   if (newState.scoringType === 'rally') {
-    // === RALLY SCORING (2026) ===
+    // ------------------------------------------------------------------------
+    // RALLY SCORING LOGIC (2026)
+    // - Points on every turn.
+    // - No "Server 2".
+    // ------------------------------------------------------------------------
     if (winner === 'me') {
       newState.myScore++;
     } else {
@@ -90,7 +129,12 @@ export const handleRallyWin = (currentState: GameState, winner: Player): GameSta
     }
 
   } else {
-    // === TRADITIONAL SIDE-OUT SCORING ===
+    // ------------------------------------------------------------------------
+    // TRADITIONAL SIDE-OUT SCORING LOGIC
+    // - Only server scores.
+    // - Server 1 -> Server 2 -> Side Out.
+    // - Strict Positioning Rules (Rule 1 & 5).
+    // ------------------------------------------------------------------------
     if (newState.mode === 'singles') {
       if (isServer) {
         if (winner === 'me') newState.myScore++;
@@ -140,22 +184,35 @@ export const undoLastAction = (currentState: GameState): GameState => {
   return previousState;
 };
 
-// Helper to determine exactly who (A, B, C, D) has the ball for UI
-// Helper to determine exactly who (A, B, C, D) has the ball for UI
+/**
+ * Determines which player ID (A, B, C, D) is currently holding the ball.
+ * 
+ * LOGIC:
+ * - Singles: Straightforward.
+ * - Rally Doubles: Even score = Right, Odd score = Left.
+ * - Side-out Doubles:
+ *   - Use Relative Scoring (Current - Start).
+ *   - 0 relative points (Game Start / Side-out Start) -> Right.
+ *   - 1 relative point -> Left.
+ */
 export const getActiveServerID = (state: GameState): PlayerID => {
   if (state.mode === 'singles') return '';
 
   const players = state.server === 'me' ? state.myPlayers : state.opponentPlayers;
   // players = [RightPlayer, LeftPlayer]
 
-  // === RALLY SCORING ===
+  // ==========================================================================
+  // RALLY SCORING (Absolute Positioning)
+  // ==========================================================================
   if (state.scoringType === 'rally') {
     const score = state.server === 'me' ? state.myScore : state.opponentScore;
     const isEven = score % 2 === 0;
     return isEven ? players[0] : players[1];
   }
 
-  // === SIDE-OUT SCORING ===
+  // ==========================================================================
+  // SIDE-OUT SCORING (Relative Positioning)
+  // ==========================================================================
   else {
     const currentScore = state.server === 'me' ? state.myScore : state.opponentScore;
     // Rule 1 & 5: Side-out ALWAYS starts from the Right (Relative Scoring)
