@@ -59,7 +59,7 @@ export const handleRallyWin = (currentState: GameState, winner: Player): GameSta
 
   // --- SCORING LOGIC SPLIT ---
   if (newState.scoringType === 'rally') {
-    // === RALLY SCORING (2025/2026) ===
+    // === RALLY SCORING (2026) ===
     if (winner === 'me') {
       newState.myScore++;
     } else {

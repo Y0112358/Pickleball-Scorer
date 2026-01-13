@@ -101,7 +101,7 @@ const App: React.FC = () => {
             onClick={() => setScoringType('rally')}
             className={`px-4 py-2 rounded-md text-sm font-bold tracking-wider transition-all ${scoringType === 'rally' ? 'bg-gradient-to-r from-green-400 to-blue-500 text-black shadow-lg shadow-blue-500/20' : 'text-gray-500 hover:text-white'}`}
           >
-            RALLY SCORING (2025)
+            RALLY SCORING (2026)
           </button>
           <button
             onClick={() => setScoringType('sideout')}
